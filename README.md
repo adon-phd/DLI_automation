@@ -48,6 +48,25 @@ Includes a single click button to start multiple outlets.
 
 ---
 
+## Security
+
+This code is not production-ready.
+
+- Credentials are hardcoded. Use environment variables or a secrets manager.  
+- Certificate validation is disabled. Always verify TLS in production.  
+- No authentication or authorization. Add proper access controls.  
+- Commands may be sent over plaintext. Enforce HTTPS.  
+- Input is not validated. Risk of injection or misuse.  
+- Debug logs may leak sensitive info. Remove before deployment.  
+- No rate limiting or brute-force protection.  
+- No audit logging of sensitive actions.  
+
+Use this only as a proof of concept. A secure deployment requires proper secret handling, TLS, authentication, and logging.
+
+
+
+---
+
 ## License
 
 This project is released under a **non-commercial license**.  
