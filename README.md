@@ -59,7 +59,8 @@ This code is not production-ready.
 - Input is not validated. Risk of injection or misuse.  
 - Debug logs may leak sensitive info. Remove before deployment.  
 - No rate limiting or brute-force protection.  
-- No audit logging of sensitive actions.  
+- No audit logging of sensitive actions.
+- Remote access is not secured. If the DLI device is at a remote site, use a secure VPN (e.g. WireGuard, ZeroTier) or similar tunneling solution.   
 
 Use this only as a proof of concept. A secure deployment requires proper secret handling, TLS, authentication, and logging.
 
