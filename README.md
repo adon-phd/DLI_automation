@@ -41,7 +41,10 @@ Paste into the DLI web UI under the notifications menu.
 
 Navigate to the `dashboard/` directory and open `index.html` in a browser.  
 This provides a simple outlet dashboard panel with async outlet toggling and pushover notifications.
-Include a single click button to start multiple outlets.
+Can disable outlets to prevent accidental, unrecoverable power outages.
+Includes a single click button to start multiple outlets.
+
+![DLI Outlet Control](./DLI%20Outlet%20Control.png)
 
 ---
 
