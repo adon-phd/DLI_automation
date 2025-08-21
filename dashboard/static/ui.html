@@ -1,0 +1,292 @@
+# ------------------------------------------------------------------------------
+# Copyright (c) 2025 Adon Phillips
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to use,
+# copy, modify, and merge the Software for non-commercial purposes only,
+# including academic and personal projects, subject to the following conditions:
+#
+# 1. The above copyright notice and this permission notice shall be included in
+#    all copies or substantial portions of the Software.
+# 2. Commercial use of the Software, in whole or in part, is strictly prohibited
+#    without prior written permission from the copyright holder.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# ------------------------------------------------------------------------------
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DLI Outlet Dashboard</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #bbb;  
+      margin-bottom: 20px;
+    }
+    .outlet-title {
+      color: #bbb;  
+      margin-bottom: 10px;
+    }
+    .outlet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .outlet {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    button {
+      padding: 10px 18px;
+      margin: 6px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      display: block;
+      width: 100%;
+    }
+    .on    { background: #4caf50; color: white; }
+    .off   { background: #f44336; color: white; }
+    .cycle { background: #ff9800; color: white; }
+    .disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    #imaging {
+      background: #4caf50;   /* green */
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      margin: 25px auto;
+      display: inline-block;  
+      cursor: pointer;
+      width: auto;            
+      min-width: 120px;       
+      text-align: center;
+    }
+    #imaging:hover { background: #45a049; }
+
+    /* Connection indicator */
+    #connection-status {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #bbb;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .connected { background: #4caf50; }
+    .disconnected { background: #f44336; }
+
+  .outlet.protected {
+    opacity: 0.6;
+  }
+  .outlet.protected button {
+    background: #555 !important;
+    color: #999 !important;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .protected-label {
+    margin-top: 6px;
+    font-size: 0.8em;
+    color: #bbb;
+    font-style: italic;
+  }
+  .outlet button.loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+    color: transparent !important; 
+  }
+
+  .outlet button.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid #fff;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  </style>
+</head>
+<body>
+  <div id="connection-status">
+    <span class="status-dot disconnected" id="status-dot"></span>
+    <span id="status-text">Disconnected</span>
+  </div>
+
+  <h1>DLI Outlet Dashboard</h1>
+
+  <div class="outlet-grid" id="outletGrid"></div>
+
+  <button id="imaging">Start Imaging</button>
+
+<script>
+  const disabledOutlets = [8]; //protected in the UI to prevent accidental power off.
+
+  async function fetchStates() {
+    try {
+      const [resStates, resNames] = await Promise.all([
+        fetch("/api/relay/outlets/all;/physical_state/"),
+        fetch("/api/relay/outlets/all;/name/")
+      ]);
+
+      if (!resStates.ok || !resNames.ok) throw new Error("Failed to connect");
+
+      const states = await resStates.json();
+      const names  = await resNames.json();
+
+      updateConnection(true);
+      renderGrid(states, names);
+    } catch (err) {
+      console.error("Fetch failed:", err);
+      updateConnection(false);
+    }
+  }
+
+  function renderGrid(states, names) {
+    const grid = document.querySelector("#outletGrid");
+    grid.innerHTML = "";
+    states.forEach((state, i) => {
+      const uiOutlet   = i + 1;
+      const isDisabled = disabledOutlets.includes(uiOutlet);
+      const outletName = names && names[i] ? names[i] : `Outlet ${uiOutlet}`;
+
+      const outletDiv = document.createElement("div");
+      outletDiv.className = "outlet";
+      if (isDisabled) outletDiv.classList.add("protected");
+
+      outletDiv.innerHTML = `
+        <div class="outlet-title">${outletName}</div>
+        <button id="btn-${uiOutlet}" class="${state ? "on" : "off"}">
+          ${state ? "ON" : "OFF"}
+        </button>
+        <button id="cycle-${uiOutlet}" class="cycle ${state ? "" : "disabled"}">
+          CYCLE
+        </button>
+        ${isDisabled ? `<div class="protected-label">Protected</div>` : ""}
+      `;
+
+      if (!isDisabled) {
+        outletDiv.querySelector(`#btn-${uiOutlet}`).onclick = () =>
+          setOutlet(uiOutlet, !state);
+        if (state) {
+          outletDiv.querySelector(`#cycle-${uiOutlet}`).onclick = () =>
+          cycleOutlet(uiOutlet);
+        }
+      }
+      grid.appendChild(outletDiv);
+    });
+  }
+
+  async function setOutlet(uiOutlet, value) {
+    const apiOutlet = uiOutlet - 1;
+    const btn = document.getElementById(`btn-${uiOutlet}`);
+    if (btn) btn.classList.add("loading");
+
+    try {
+      await fetch(`/api/relay/outlets/${apiOutlet}/state/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRF": "x"
+        },
+        body: `value=${value ? "true" : "false"}`
+      });
+      await fetchStates();
+    } catch (err) {
+      console.error("Set error:", err);
+    } finally {
+      if (btn) btn.classList.remove("loading");
+    }
+  }
+
+  async function cycleOutlet(uiOutlet) {
+    const apiOutlet = uiOutlet - 1;
+    const btn = document.getElementById(`cycle-${uiOutlet}`);
+    if (btn) btn.classList.add("loading");
+
+    try {
+      await fetch(`/api/relay/outlets/${apiOutlet}/cycle/`, {
+        method: "POST",
+        headers: { "X-CSRF": "x" }
+      });
+      setTimeout(fetchStates, 2000);
+    } catch (err) {
+      console.error("Cycle error:", err);
+    } finally {
+      if (btn) btn.classList.remove("loading");
+    }
+  }
+
+  async function startImaging() {
+    const outlets = [1, 2, 3]; // UI numbering (API is zero indexed)
+    for (let o of outlets) {
+      if (!disabledOutlets.includes(o)) {
+        await setOutlet(o, true);
+      }
+    }
+  }
+
+  function updateConnection(connected) {
+    const dot = document.getElementById("status-dot");
+    const text = document.getElementById("status-text");
+    if (connected) {
+      dot.className = "status-dot connected";
+      text.textContent = "Connected";
+    } else {
+      dot.className = "status-dot disconnected";
+      text.textContent = "Disconnected";
+    }
+  }
+
+  document.getElementById("imaging").addEventListener("click", startImaging);
+
+  fetchStates();
+  setInterval(fetchStates, 5000);
+</script>
+
+</body>
+</html>
